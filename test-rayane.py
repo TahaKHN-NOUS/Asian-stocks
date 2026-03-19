@@ -91,3 +91,37 @@ def turnbull_wakeman_call_discrete(S0, K, r, sigma, T, N):
     price = S0 * np.exp((r_A - r)*T) * norm.cdf(d1) - K * np.exp(-r*T) * norm.cdf(d2)
 
     return price, r_A, sigma_A, M1, M2
+
+
+
+"""
+def monte_carlo_asian_call(S0, K, r, sigma, T, N, n_simul=200_000, seed=42):
+    """
+    Prix Monte Carlo d'un Call Asiatique discret.
+    Moyenne arithmétique sur N dates équidistantes.
+ 
+    Retourne : prix, intervalle de confiance 95%
+    """
+    rng     = np.random.default_rng(seed)
+    dt      = T / N
+ 
+    # Simulation vectorisée : (n_simul, N) increments browniens
+    Z = rng.standard_normal((n_simul, N))
+    # Log-rendements incrémentaux
+    log_increments = (r - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * Z
+    # Trajectoires cumulées
+    log_paths = np.cumsum(log_increments, axis=1)
+    S_paths   = S0 * np.exp(log_paths)          # shape (n_simul, N)
+ 
+    # Moyenne arithmétique sur les N dates
+    S_mean  = S_paths.mean(axis=1)              # shape (n_simul,)
+ 
+    # Payoff actualisé
+    payoffs = np.exp(-r * T) * np.maximum(S_mean - K, 0)
+ 
+    price = payoffs.mean()
+    std   = payoffs.std() / np.sqrt(n_simul)
+    ic95  = 1.96 * std
+ 
+    return price, ic95
+"""
