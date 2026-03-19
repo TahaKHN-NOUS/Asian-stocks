@@ -96,12 +96,12 @@ def turnbull_wakeman_call_discrete(S0, K, r, sigma, T, N):
 
 """
 def monte_carlo_asian_call(S0, K, r, sigma, T, N, n_simul=200_000, seed=42):
-    """
-    Prix Monte Carlo d'un Call Asiatique discret.
-    Moyenne arithmétique sur N dates équidistantes.
+
+    #Prix Monte Carlo d'un Call Asiatique discret.
+    #Moyenne arithmétique sur N dates équidistantes.
  
-    Retourne : prix, intervalle de confiance 95%
-    """
+    #Retourne : prix, intervalle de confiance 95%
+
     rng     = np.random.default_rng(seed)
     dt      = T / N
  
