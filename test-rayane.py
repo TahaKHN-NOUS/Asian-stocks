@@ -94,34 +94,64 @@ def turnbull_wakeman_call_discrete(S0, K, r, sigma, T, N):
 
 
 
-"""
-def monte_carlo_asian_call(S0, K, r, sigma, T, N, n_simul=200_000, seed=42):
-
-    #Prix Monte Carlo d'un Call Asiatique discret.
-    #Moyenne arithmétique sur N dates équidistantes.
+# Simulation d'UNE trajectoire brownienne
+def simuler_trajectoire_brownienne(N, delta_t, seed=None):
+    rng = np.random.default_rng(seed)
+    # Incréments browniens
+    increments = np.sqrt(delta_t) * rng.standard_normal(N)
+    # Trajectoire cumulée W(0)=0, W(Δt), ..., W(NΔt)
+    W = np.concatenate([[0.0], np.cumsum(increments)])
+    return W
  
-    #Retourne : prix, intervalle de confiance 95%
-
-    rng     = np.random.default_rng(seed)
-    dt      = T / N
+# Prix de l'actif S(iΔt) à partir de W   
+def simuler_trajectoire_S(S0, r, sigma, delta_t, N, W):
+    t = np.arange(N + 1) * delta_t                 # [0, Δt, 2Δt, ..., NΔt]
+    S = S0 * np.exp((r - 0.5 * sigma**2) * t + sigma * W)
+    return S
  
-    # Simulation vectorisée : (n_simul, N) increments browniens
+
+# Payoff du Call Asiatique discret
+def payoff_call_asiatique(S, K, r, T):
+    moyenne = S[1:].mean()      # moyenne sur S(Δt), ..., S(NΔt)
+    return np.exp(-r * T) * max(moyenne - K, 0.0)
+ 
+# Estimateur Monte Carlo classique            
+def monte_carlo_asian_call(S0, K, r, sigma, T, delta_t, n_simul=100_000, seed=42):
+    """
+    Estimateur Monte Carlo de P^{Δt} pour un Call Asiatique discret.
+ 
+    Pour chaque simulation m = 1..M :
+      1. Simuler (W(iΔt))_{i=1..N}
+      2. En déduire (S(iΔt))_{i=1..N}
+      3. Calculer le payoff actualisé
+    Estimateur : moyenne empirique des payoffs
+ 
+    Retourne : prix, écart-type de l'estimateur, IC 95%
+    """
+    N   = int(T / delta_t)
+    rng = np.random.default_rng(seed)
+ 
+    # Simulation vectorisée : (n_simul, N) incréments browniens
     Z = rng.standard_normal((n_simul, N))
-    # Log-rendements incrémentaux
-    log_increments = (r - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * Z
-    # Trajectoires cumulées
-    log_paths = np.cumsum(log_increments, axis=1)
-    S_paths   = S0 * np.exp(log_paths)          # shape (n_simul, N)
+    increments  = np.sqrt(delta_t) * Z                          # (M, N)
  
-    # Moyenne arithmétique sur les N dates
-    S_mean  = S_paths.mean(axis=1)              # shape (n_simul,)
+    # Trajectoires browniennes cumulées — W(iΔt) pour i=1..N
+    W_paths = np.cumsum(increments, axis=1)                     # (M, N)
  
-    # Payoff actualisé
-    payoffs = np.exp(-r * T) * np.maximum(S_mean - K, 0)
+    # Trajectoires de S(iΔt) pour i=1..N  (on n'a pas besoin de i=0)
+    t       = np.arange(1, N + 1) * delta_t                     # (N,)
+    S_paths = S0 * np.exp((r - 0.5 * sigma**2) * t + sigma * W_paths)  # (M, N)
  
-    price = payoffs.mean()
-    std   = payoffs.std() / np.sqrt(n_simul)
-    ic95  = 1.96 * std
+    # Moyenne arithmétique sur les N dates pour chaque trajectoire
+    S_mean  = S_paths.mean(axis=1)                              # (M,)
  
-    return price, ic95
-"""
+    # Payoffs actualisés
+    payoffs = np.exp(-r * T) * np.maximum(S_mean - K, 0.0)     # (M,)
+ 
+    # Estimateur et statistiques
+    prix    = payoffs.mean()
+    std_err = payoffs.std() / np.sqrt(n_simul)
+    ic95    = 1.96 * std_err
+ 
+    return prix, std_err, ic95
+ 
