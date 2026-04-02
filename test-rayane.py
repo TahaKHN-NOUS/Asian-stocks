@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.stats import norm
- 
+
+
+# question 3
 def turnbull_wakeman_call(S0, K, r, sigma, T, t0=0.0):
     """
     Prix d'un Call Asiatique par l'approximation Turnbull-Wakeman.
@@ -42,6 +44,7 @@ def turnbull_wakeman_call(S0, K, r, sigma, T, t0=0.0):
     return price, r_A, sigma_A, M1, M2
 
 
+# question 4
 def M1_discrete(r, delta_t, N):
     e_r  = np.exp(r * delta_t)
     e_rN = np.exp(r * N * delta_t)
@@ -94,6 +97,7 @@ def turnbull_wakeman_call_discrete(S0, K, r, sigma, T, N):
 
 
 
+# question 5
 # Simulation d'UNE trajectoire brownienne
 def simuler_trajectoire_brownienne(N, delta_t, seed=None):
     rng = np.random.default_rng(seed)
@@ -136,7 +140,7 @@ def monte_carlo_asian_call(S0, K, r, sigma, T, delta_t, n_simul=100_000, seed=42
     increments  = np.sqrt(delta_t) * Z                          # (M, N)
  
     # Trajectoires browniennes cumulées — W(iΔt) pour i=1..N
-    W_paths = np.cumsum(increments, axis=1)                     # (M, N)
+    W_paths = np.cumsm(increments, axis=1)                     # (M, N)
  
     # Trajectoires de S(iΔt) pour i=1..N  (on n'a pas besoin de i=0)
     t       = np.arange(1, N + 1) * delta_t                     # (N,)
