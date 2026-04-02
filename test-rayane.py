@@ -158,4 +158,18 @@ def monte_carlo_asian_call(S0, K, r, sigma, T, delta_t, n_simul=100_000, seed=42
     ic95    = 1.96 * std_err
  
     return prix, std_err, ic95
- 
+S0 = 1
+K = 1
+r = 0.01
+sigma = 0.3
+T = 0.5
+N = int(T / (1/252))
+delta_t = 1/252
+
+price_tw_cont, rA_cont, sigmaA_cont, M1c, M2c = turnbull_wakeman_call(S0, K, r, sigma, T)
+price_tw_disc, rA_disc, sigmaA_disc, M1d, M2d = turnbull_wakeman_call_discrete(S0, K, r, sigma, T, N)
+price_mc, std_err_mc, ic95_mc = monte_carlo_asian_call(S0, K, r, sigma, T, delta_t)
+
+print("TW continu :", price_tw_cont)
+print("TW discret :", price_tw_disc)
+print("MC classique :", price_mc, "±", ic95_mc)
