@@ -1,17 +1,14 @@
 """
-PRB222 - Options Asiatiques
-Implémentation complète : Q1 à Q16
+Options Asiatiques
+El Mehdi En-Nahas, Jude Nemer Khazzaka, Taha Khn-nous, Rayane Lallouch
 Paramètres : sigma=0.3, S0=1, K=1, dt=1/252, r=0.01, T=6 mois
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 import time
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Paramètres globaux (défauts)
-# ─────────────────────────────────────────────────────────────────────────────
 S0       = 1.0
 K_DEF    = 1.0
 r        = 0.01
@@ -22,11 +19,9 @@ EPSILON  = 1            # 1 = Call, -1 = Put
 
 np.random.seed(42)
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Approximation Abramowitz & Stegun de la CDF normale centrée réduite
-# ─────────────────────────────────────────────────────────────────────────────
 def norm_cdf(x: np.ndarray) -> np.ndarray:
-    """CDF N(0,1) via Abramowitz & Stegun, précision < 7.5e-8."""
+    # CDF N(0,1)
     b0 = 0.2316419
     b1 =  0.319381530
     b2 = -0.356563782
@@ -41,38 +36,36 @@ def norm_cdf(x: np.ndarray) -> np.ndarray:
     cdf_pos = 1.0 - (1.0/np.sqrt(2*np.pi)) * np.exp(-0.5*ax**2) * poly
     return np.where(x >= 0, cdf_pos, 1.0 - cdf_pos)
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Q1 – Solution explicite de l'EDS de Black-Scholes
-# S(t) = S0 * exp((r - σ²/2)*t + σ*W(t))
-# ─────────────────────────────────────────────────────────────────────────────
+
 def BS_path(t, W_t, S0=S0, r=r, sigma=SIGMA):
     """S(t) = S0 exp((r - σ²/2)t + σ W(t))."""
     return S0 * np.exp((r - 0.5*sigma**2)*t + sigma*W_t)
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Formule de Black-Scholes standard (pour usage interne TW / variable contrôle)
-# ─────────────────────────────────────────────────────────────────────────────
-def bs_call_put(S, K, r_bs, sigma_bs, T_bs, eps=1):
-    """Prix BS d'un call (eps=1) ou put (eps=-1)."""
+
+def bs_call_put(S, K, r_bs, sigma_bs, T_bs, eps=1): # prix BS d'un call (eps=1) ou put (eps=-1)
     if T_bs <= 1e-12 or sigma_bs <= 1e-12 or S <= 0 or K <= 0:
         return float(max(eps*(S - K), 0.0))
     d1 = (np.log(S/K) + (r_bs + 0.5*sigma_bs**2)*T_bs) / (sigma_bs*np.sqrt(T_bs))
     d2 = d1 - sigma_bs*np.sqrt(T_bs)
     return eps * (S * norm_cdf(eps*d1) - K*np.exp(-r_bs*T_bs)*norm_cdf(eps*d2))
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Q3 – Approximation Turnbull & Wakeman CONTINUE
-# ─────────────────────────────────────────────────────────────────────────────
+
 def tw_continuous(S0, K, r, sigma, T, eps=EPSILON):
-    """Prix TW continu : on égalise les 2 premiers moments de la moyenne continue."""
+    # prix TW continu : on égalise les 2 premiers moments de la moyenne continue
     rT = r * T
-    # M1 = E[1/T ∫₀ᵀ S(t)dt] / S0
+    # M1
     if abs(r) < 1e-12:
         M1 = 1.0
     else:
         M1 = (np.exp(rT) - 1.0) / rT
 
-    # M2 = E[(1/T ∫₀ᵀ S(t)dt)²] / S0²
+    # M2
     r2s = 2*r + sigma**2
     M2 = (2.0*np.exp(r2s*T) / ((r + sigma**2)*r2s*T**2)
           + 2.0/(rT*T) * (1.0/r2s - np.exp(rT)/(r + sigma**2)))
@@ -83,11 +76,11 @@ def tw_continuous(S0, K, r, sigma, T, eps=EPSILON):
 
     return bs_call_put(S0, K, rA, sigA, T, eps)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Q4 – Approximation Turnbull & Wakeman DISCRETISÉE
-# ─────────────────────────────────────────────────────────────────────────────
+
+# Q4 – Approximation Turnbull & Wakeman DISCRETISEE
+
 def tw_discrete(S0, K, r, sigma, T, dt, eps=EPSILON):
-    """Prix TW discret : on égalise les moments de 1/N Σ S(i·Δt)."""
+    # prix TW discret : on egalise les moments de 1/N * la somme de S(i*Δt)
     N   = max(1, int(round(T / dt)))
     rdt = r * dt
     s2dt = (2*r + sigma**2) * dt
@@ -98,7 +91,7 @@ def tw_discrete(S0, K, r, sigma, T, dt, eps=EPSILON):
     else:
         M1 = (1.0/N) * np.exp(rdt) * (1.0 - np.exp(rdt*N)) / (1.0 - np.exp(rdt))
 
-    # M2 : terme diagonal + terme croisé
+    # M2 : terme diagonal + terme croise
     denom1 = 1.0 - np.exp(s2dt)
     T1 = (1.0/N**2) * np.exp(s2dt) * (1.0 - np.exp(s2dt*N)) / denom1
 
@@ -115,23 +108,16 @@ def tw_discrete(S0, K, r, sigma, T, dt, eps=EPSILON):
 
     return bs_call_put(S0, K, rA, sigA, T, eps)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Q5 – Simulation de trajectoires (loi uniforme uniquement → Box-Muller)
-#       et estimateur Monte Carlo classique
-# ─────────────────────────────────────────────────────────────────────────────
-def simulate_S_paths(M_paths, N_steps, dt, r, sigma, S0):
-    """
-    Retourne S_paths (M, N) et W_paths (M, N).
-    Utilise uniquement un générateur Uniforme (Box-Muller).
-    """
+
+# Q5 – Simulation de trajectoires et estimateur Monte Carlo classique
+
+def simulate_S_paths(M_paths, N_steps, dt, r, sigma, S0): # retourne S_paths (M, N) et W_paths (M, N).
     U1 = np.random.uniform(0.0, 1.0, (M_paths, N_steps))
     U2 = np.random.uniform(0.0, 1.0, (M_paths, N_steps))
-    # Box-Muller : Z ~ N(0,1)
-    Z  = np.sqrt(-2.0 * np.log(np.clip(U1, 1e-300, None))) * np.cos(2.0*np.pi*U2)
 
+    Z  = np.sqrt(-2.0 * np.log(np.clip(U1, 1e-300, None))) * np.cos(2.0*np.pi*U2)
     dW = np.sqrt(dt) * Z
     W  = np.cumsum(dW, axis=1)               # (M, N)
-
     ts = np.arange(1, N_steps+1) * dt        # (N,)
     log_S = (np.log(S0)
              + (r - 0.5*sigma**2) * ts[np.newaxis, :]
@@ -140,7 +126,7 @@ def simulate_S_paths(M_paths, N_steps, dt, r, sigma, S0):
     return S_paths, W
 
 def mc_asian(M_paths, dt, r, sigma, S0, K, T, eps=EPSILON):
-    """Estimateur Monte Carlo classique de P^{Δt}."""
+    # estimateur Monte Carlo classique de P^{Δt}
     N = max(1, int(round(T/dt)))
     S_paths, _ = simulate_S_paths(M_paths, N, dt, r, sigma, S0)
 
@@ -152,63 +138,50 @@ def mc_asian(M_paths, dt, r, sigma, S0, K, T, eps=EPSILON):
     se     = disc * payoffs.std(ddof=1) / np.sqrt(M_paths)
     return price, se, payoffs
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Q6 – Moyenne géométrique : loi et prix analytique
-#
-# e^{1/N Σ ln S(iΔt)}  =^{loi}  S0 · exp((r^E - (σ^E)²/2)T + σ^E W^E_T)
-#
-# (σ^E)² = σ² (N+1)(2N+1) / (6N²)
-# r^E    = (r - σ²/2)(N+1)/(2N) + (σ^E)²/2
-# ─────────────────────────────────────────────────────────────────────────────
-def geom_avg_params(r, sigma, T, N):
-    """Retourne (r^E, σ^E) pour la moyenne géométrique discrète."""
+
+def geom_avg_params(r, sigma, T, N): # Retourne (r^E, sigma^E) pour la moyenne géométrique discrète
     sigE2 = sigma**2 * (N+1)*(2*N+1) / (6*N**2)
     sigE  = np.sqrt(sigE2)
     rE    = (r - 0.5*sigma**2)*(N+1)/(2*N) + 0.5*sigE2
     return rE, sigE
 
-def geom_avg_price(S0, K, r, sigma, T, N, eps=EPSILON):
-    """Prix analytique de l'option sur moyenne géométrique discrète."""
+def geom_avg_price(S0, K, r, sigma, T, N, eps=EPSILON): # Prix analytique de l'option sur moyenne géométrique discrète
     rE, sigE = geom_avg_params(r, sigma, T, N)
     return bs_call_put(S0, K, rE, sigE, T, eps)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Q7 – Estimateur Monte Carlo avec variable de contrôle
-#       Variable de contrôle : payoff sur moyenne géométrique
-# ─────────────────────────────────────────────────────────────────────────────
+
+# Q7 – Estimateur Monte Carlo avec variable de contrôle (payoff sur moyenne géométrique)
+
 def mc_asian_ctrl(M_paths, dt, r, sigma, S0, K, T, eps=EPSILON):
-    """
-    Estimateur MC avec variable de contrôle (moyenne géométrique).
-    β optimal estimé sur l'échantillon.
-    """
+    # beta optimal estimé sur l'échantillon.
+    
     N = max(1, int(round(T/dt)))
     S_paths, _ = simulate_S_paths(M_paths, N, dt, r, sigma, S0)
-
     arith_avg = S_paths.mean(axis=1)
     log_S     = np.log(S_paths)
     geom_avg  = np.exp(log_S.mean(axis=1))
-
     payoff_arith = np.maximum(eps*(arith_avg - K), 0.0)
     payoff_geom  = np.maximum(eps*(geom_avg  - K), 0.0)
 
-    # Espérance analytique de la variable de contrôle (non actualisée)
+    # espérance analytique de la variable de contrôle (non actualisée)
     geom_cf = geom_avg_price(S0, K, r, sigma, T, N, eps) * np.exp(r*T)
 
-    # Coefficient β optimal
+    # Coefficient beta optimal
     cov_mat = np.cov(payoff_arith, payoff_geom)
     var_g   = cov_mat[1, 1]
     beta    = cov_mat[0, 1] / var_g if var_g > 1e-14 else 0.0
 
     payoffs_ctrl = payoff_arith - beta*(payoff_geom - geom_cf)
-
     disc  = np.exp(-r*T)
     price = disc * payoffs_ctrl.mean()
     se    = disc * payoffs_ctrl.std(ddof=1) / np.sqrt(M_paths)
     return price, se, payoffs_ctrl
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Q8 – Convergence en nombre de trajectoires  (CI à 90%)
-# ─────────────────────────────────────────────────────────────────────────────
+
+# Q8 – convergence en nombre de trajectoires  (IC à 90%)
+
 def plot_q8(M_max=50_000, step=500):
     print("Q8 : Convergence en nombre de trajectoires...")
     path_counts = np.arange(step, M_max+step, step)
@@ -270,9 +243,9 @@ def plot_q8(M_max=50_000, step=500):
     plt.savefig("q8_convergence.png", dpi=150)
     plt.close()
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Q9 – Prix en fonction de K
-# ─────────────────────────────────────────────────────────────────────────────
+
 def plot_q9(M_paths=30_000, n_K=60):
     print("Q9 : Prix en fonction de K...")
     K_vals = np.linspace(0.01, 2.0, n_K)
@@ -339,9 +312,9 @@ def plot_q9(M_paths=30_000, n_K=60):
     plt.close()
     
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Q10 – Prix en fonction de σ
-# ─────────────────────────────────────────────────────────────────────────────
+
 def plot_q10(M_paths=30_000, n_sig=50):
     print("Q10 : Prix en fonction de σ...")
     sig_vals = np.linspace(0.001, 0.8, n_sig)
@@ -390,9 +363,9 @@ def plot_q10(M_paths=30_000, n_sig=50):
     plt.savefig("q10_vs_sigma.png", dpi=150)
     plt.close()
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Q11 – Influence de la discrétisation (TW discret vs K)
-# ─────────────────────────────────────────────────────────────────────────────
+
 def plot_q11(n_K=80):
     print("Q11 : Influence de Δt sur P^{Δt,TW} ...")
     K_vals = np.linspace(0.01, 2.0, n_K)
@@ -425,9 +398,9 @@ def plot_q11(n_K=80):
     plt.savefig("q11_discretisation.png", dpi=150)
     plt.close()
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Q12 – Différence MC ctrl − TW pour plusieurs Δt
-# ─────────────────────────────────────────────────────────────────────────────
+
 def plot_q12(M_paths=30_000, n_K=50):
     print("Q12 : Différence MC ctrl − TW pour différents Δt...")
     K_vals = np.linspace(0.05, 2.0, n_K)
@@ -480,9 +453,9 @@ def plot_q12(M_paths=30_000, n_K=50):
     plt.savefig("q12_diff_discret.png", dpi=150)
     plt.close()
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Q13 – Comparaison des temps de calcul
-# ─────────────────────────────────────────────────────────────────────────────
+
 def benchmark_q13(M_paths=10_000, n_rep=5):
     print("Q13 : Temps de calcul ...")
     dts = {"1/252": 1/252, "1/52": 1/52, "1/12": 1/12}
@@ -523,16 +496,15 @@ def benchmark_q13(M_paths=10_000, n_rep=5):
     plt.close()
     return results
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Q15 – Parité Call/Put asiatique
 #
-# e^{-rT} E[(1/N Σ S(iΔt) - K)⁺] - e^{-rT} E[(K - 1/N Σ S(iΔt))⁺]
-#   = e^{-rT}(S0·M1 - K)
-# ─────────────────────────────────────────────────────────────────────────────
+
+
 def asian_parity(S0, K, r, sigma, T, dt):
     """
-    Retourne le membre droit de la parité call-put asiatique:
-    C - P = e^{-rT}(S0·M1 - K)
+    retourne le membre droit de la parité call-put asiatique:
+    C - P = e^{-rT}(S0*M1 - K)
     où M1 est le premier moment normalisé de la moyenne arithmétique.
     """
     N   = max(1, int(round(T/dt)))
@@ -543,13 +515,13 @@ def asian_parity(S0, K, r, sigma, T, dt):
         M1 = (1.0/N) * np.exp(rdt) * (1.0 - np.exp(rdt*N)) / (1.0 - np.exp(rdt))
     return np.exp(-r*T) * (S0*M1 - K)
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Q16 – Réduction de variance par parité + variable de contrôle géométrique
-# ─────────────────────────────────────────────────────────────────────────────
+
 def plot_q16(M_paths=20_000, n_K=60):
     """
-    Pour K < S0·M1 (call dans la monnaie) → parité C-P = cst+call géom → variance ↓
-    Pour K > S0·M1 (put dans la monnaie)  → parité met en jeu le put géom  → variance ↑
+    Pour K < S0*M1 (call dans la monnaie) -> parité C-P = cst+call géom -> variance plus faible
+    Pour K > S0*M1 (put dans la monnaie)  -> parité met en jeu le put géom  -> variance plus grande
     Paramètre discriminant : moneyness K/S0.
     """
     print("Q16 : Réduction de variance par parité call-put...")
@@ -559,7 +531,7 @@ def plot_q16(M_paths=20_000, n_K=60):
     disc   = np.exp(-r*T)
 
     # Parity constant
-    M1_disc = tw_discrete(S0, 1.0, r, SIGMA, T, DT_DEF)   # proxy pour M1·S0
+    M1_disc = tw_discrete(S0, 1.0, r, SIGMA, T, DT_DEF)   # proxy pour M1*S0
 
     S_all, _ = simulate_S_paths(M_paths, N, DT_DEF, r, SIGMA, S0)
     arith = S_all.mean(axis=1)
@@ -567,7 +539,7 @@ def plot_q16(M_paths=20_000, n_K=60):
 
     ci_call, ci_put, ci_parity = [], [], []
     for K_ in K_vals:
-        # --- Call avec ctrl géom standard
+        # call avec ctrl géom standard
         p_c  = np.maximum(arith - K_, 0)
         g_c  = np.maximum(geom  - K_, 0)
         cf_c = geom_avg_price(S0, K_, r, SIGMA, T, N) * np.exp(r*T)
@@ -576,7 +548,7 @@ def plot_q16(M_paths=20_000, n_K=60):
         pc_c = p_c - b_c*(g_c - cf_c)
         ci_call.append(q90 * disc * pc_c.std(ddof=1) / np.sqrt(M_paths))
 
-        # --- Put avec ctrl géom standard
+        # put avec ctrl géom standard
         p_p  = np.maximum(K_ - arith, 0)
         g_p  = np.maximum(K_ - geom,  0)
         cf_p = geom_avg_price(S0, K_, r, SIGMA, T, N, eps=-1) * np.exp(r*T)
@@ -585,8 +557,8 @@ def plot_q16(M_paths=20_000, n_K=60):
         pc_p = p_p - b_p*(g_p - cf_p)
         ci_put.append(q90 * disc * pc_p.std(ddof=1) / np.sqrt(M_paths))
 
-        # --- Call par parité (C = P + disc*(S0*M1 - K))
-        #     on estime P par MC ctrl et on ajoute la constante
+        # call par parité (C = P + disc*(S0*M1 - K))
+        # on estime P par MC ctrl et on ajoute la constante
         ci_parity.append(ci_put[-1])   # même variance que le put estimé par ctrl
 
     ci_call    = np.array(ci_call)
@@ -606,44 +578,44 @@ def plot_q16(M_paths=20_000, n_K=60):
     plt.savefig("q16_parity_ctrl.png", dpi=150)
     plt.close()
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # MAIN – affichage résumé numérique + génération de tous les graphiques
-# ─────────────────────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
     print("=" * 60)
     print("  PRB222 – Options Asiatiques – Résultats numériques")
     print("=" * 60)
 
-    # ── Q3 : TW continu
+    #  Q3 : TW continu
     p_tw_cont = tw_continuous(S0, K_DEF, r, SIGMA, T)
     print(f"\nQ3  – TW continu (Call)     = {p_tw_cont:.6f}")
 
-    # ── Q4 : TW discret
+    #  Q4 : TW discret
     p_tw_disc = tw_discrete(S0, K_DEF, r, SIGMA, T, DT_DEF)
     print(f"Q4  – TW discret (Call)     = {p_tw_disc:.6f}")
 
-    # ── Q5 : MC classique
+    #  Q5 : MC classique
     p_mc, se_mc, _ = mc_asian(20_000, DT_DEF, r, SIGMA, S0, K_DEF, T)
     print(f"Q5  – MC classique (20k)    = {p_mc:.6f}  ±  {se_mc:.6f}")
 
-    # ── Q6 : prix géométrique analytique
+    #  Q6 : prix géométrique analytique
     N_def = int(round(T/DT_DEF))
     p_geom = geom_avg_price(S0, K_DEF, r, SIGMA, T, N_def)
     rE, sE = geom_avg_params(r, SIGMA, T, N_def)
     print(f"Q6  – Prix géom. analytique = {p_geom:.6f}  (r^E={rE:.4f}, σ^E={sE:.4f})")
 
-    # ── Q7 : MC ctrl
+    #  Q7 : MC ctrl
     p_ctrl, se_ctrl, _ = mc_asian_ctrl(20_000, DT_DEF, r, SIGMA, S0, K_DEF, T)
     print(f"Q7  – MC ctrl (20k)         = {p_ctrl:.6f}  ±  {se_ctrl:.6f}")
     print(f"     Réduction variance : × {(se_mc/se_ctrl):.1f}")
 
-    # ── Q15 : parité
+    #  Q15 : parité
     par = asian_parity(S0, K_DEF, r, SIGMA, T, DT_DEF)
     p_put_ctrl, _, _ = mc_asian_ctrl(20_000, DT_DEF, r, SIGMA, S0, K_DEF, T, eps=-1)
     print(f"\nQ15 – Parité C-P théorique  = {par:.6f}")
     print(f"     Call MC ctrl - Put MC ctrl = {p_ctrl - p_put_ctrl:.6f}")
 
-    # ── Graphiques
+    #  Graphiques
     print("\n--- Génération des graphiques ---")
     plot_q8()
     plot_q9()
@@ -652,4 +624,3 @@ if __name__ == "__main__":
     plot_q12()
     benchmark_q13()
     plot_q16()
-
